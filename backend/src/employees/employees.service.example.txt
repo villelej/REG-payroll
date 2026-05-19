@@ -1,0 +1,204 @@
+/**
+ * EXAMPLE: Updated Employees Service with Multi-Branch Support
+ * 
+ * Copy pattern to other services:
+ * - users.service.ts
+ * - payroll.service.ts
+ * - attendance.service.ts
+ * - reports.service.ts
+ * - leaves.service.ts
+ */
+
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from '../prisma.service';
+import { AuthorizationService } from '../common/services/authorization.service';
+import { RequestWithUser } from '../common/interfaces/request.interface';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+
+@Injectable()
+export class EmployeesService {
+  constructor(
+    private prisma: PrismaService,
+    private authService: AuthorizationService,
+  ) {}
+
+  /**
+   * Get all employees accessible to user
+   * Automatically filters by user's assigned branches
+   */
+  async findAll(user: any) {
+    // Build base filter with company and branch constraints
+    const where = this.authService.buildAccessFilter(user);
+
+    return this.prisma.employees.findMany({
+      where,
+      include: {
+        branches: true,
+        departments: true,
+      },
+      orderBy: { employee_id: 'desc' },
+    });
+  }
+
+  /**
+   * Get employee by ID with authorization check
+   */
+  async findOne(id: number, user: any) {
+    const employee = await this.prisma.employees.findUnique({
+      where: { employee_id: id },
+      include: {
+        branches: true,
+        companies: true,
+      },
+    });
+
+    if (!employee) {
+      throw new NotFoundException('Employee not found');
+    }
+
+    // Authorization check: Can user access this employee's branch?
+    if (!this.authService.canAccessBranch(user, employee.branch_id)) {
+      throw new ForbiddenException('You do not have access to this employee');
+    }
+
+    return employee;
+  }
+
+  /**
+   * Create employee with authorization check
+   */
+  async create(dto: CreateEmployeeDto, user: any) {
+    // Check if user can create in target branch
+    if (!this.authService.canAccessBranch(user, dto.branchId)) {
+      throw new ForbiddenException(
+        'You do not have permission to create employees in this branch'
+      );
+    }
+
+    // Check if employee already exists
+    const existing = await this.prisma.employees.findFirst({
+      where: { 
+        national_id: dto.nationalId,
+        company_id: user.companyId 
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Employee with this national ID already exists');
+    }
+
+    return this.prisma.employees.create({
+      data: {
+        employee_code: dto.employeeCode,
+        first_name: dto.firstName,
+        last_name: dto.lastName,
+        national_id: dto.nationalId,
+        date_of_birth: new Date(dto.dateOfBirth),
+        company_id: user.companyId,
+        branch_id: dto.branchId,
+        department_id: dto.departmentId,
+        post_id: dto.postId,
+        date_of_joining: new Date(),
+        current_base_salary: dto.baseSalary,
+        employment_status: 'Active',
+      },
+    });
+  }
+
+  /**
+   * Update employee with authorization check
+   */
+  async update(id: number, dto: Partial<CreateEmployeeDto>, user: any) {
+    const employee = await this.findOne(id, user); // Auth check included
+
+    // If changing branch, verify new branch access
+    if (dto.branchId && dto.branchId !== employee.branch_id) {
+      if (!this.authService.canAccessBranch(user, dto.branchId)) {
+        throw new ForbiddenException(
+          'You do not have permission to move employees to this branch'
+        );
+      }
+    }
+
+    return this.prisma.employees.update({
+      where: { employee_id: id },
+      data: dto,
+    });
+  }
+
+  /**
+   * Get employee by ID for profile view (more restricted)
+   */
+  async getProfile(userId: number) {
+    const user = await this.prisma.hr_users.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (!user || !user.employee_id) {
+      throw new NotFoundException('Employee profile not found');
+    }
+
+    return this.prisma.employees.findUnique({
+      where: { employee_id: user.employee_id },
+    });
+  }
+
+  /**
+   * Example: Get employees by department with branch filtering
+   */
+  async findByDepartment(departmentId: number, user: any) {
+    const where = this.authService.buildAccessFilter(user, {
+      department_id: departmentId,
+    });
+
+    return this.prisma.employees.findMany({
+      where,
+      include: { departments: true },
+    });
+  }
+
+  /**
+   * Example: Get payroll-eligible employees
+   */
+  async findPayrollEligible(user: any) {
+    const where = this.authService.buildAccessFilter(user, {
+      employment_status: 'Active',
+    });
+
+    return this.prisma.employees.findMany({
+      where,
+      select: {
+        employee_id: true,
+        first_name: true,
+        last_name: true,
+        branch_id: true,
+        current_base_salary: true,
+      },
+    });
+  }
+
+  /**
+   * Example: Bulk operation with branch validation
+   */
+  async bulkUpdateStatus(employeeIds: number[], newStatus: string, user: any) {
+    // First, validate user can access all employees
+    const employees = await this.prisma.employees.findMany({
+      where: { employee_id: { in: employeeIds } },
+      select: { employee_id: true, branch_id: true },
+    });
+
+    for (const emp of employees) {
+      if (!this.authService.canAccessBranch(user, emp.branch_id)) {
+        throw new ForbiddenException(
+          `You cannot update employee ${emp.employee_id}: unauthorized branch access`
+        );
+      }
+    }
+
+    // Proceed with update
+    return this.prisma.employees.updateMany({
+      where: { employee_id: { in: employeeIds } },
+      data: { employment_status: newStatus },
+    });
+  }
+}

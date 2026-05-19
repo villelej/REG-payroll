@@ -1,0 +1,8 @@
+{
+  "Field": "role",
+  "Type": "enum('SuperAdmin','Admin','User')",
+  "Null": "NO",
+  "Key": "",
+  "Default": null,
+  "Extra": ""
+}

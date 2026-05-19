@@ -1,0 +1,84 @@
+// Updated Prisma schema - Multi-branch support
+// Replace corresponding sections in your existing schema.prisma
+
+// ============ NEW MODEL ============
+model hr_user_branches {
+  id        Int   @id @default(autoincrement())
+  user_id   Int
+  branch_id Int
+  createdAt DateTime @default(now())
+
+  // Relations
+  hr_users hr_users @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  branches branches @relation(fields: [branch_id], references: [branch_id], onDelete: Cascade)
+
+  // Unique constraint: One HR user can only have one assignment per branch
+  @@unique([user_id, branch_id])
+  @@index([user_id])
+  @@index([branch_id])
+}
+
+// ============ UPDATED: hr_users MODEL ============
+model hr_users {
+  user_id               Int                   @id @default(autoincrement())
+  company_id            Int?
+  employee_id           Int?
+  username              String                @db.VarChar(50)
+  email                 String                @unique @db.VarChar(100)
+  refresh_token_hash    String?
+  activation_token      String?
+  activation_expires_at DateTime?
+  password_hash         String
+  full_name             String                @db.VarChar(200)
+  role                  hr_users_role
+  access_scope          hr_users_access_scope @default(BranchOnly)
+  
+  // NEW: Permission to view all branches
+  canViewAllBranches    Boolean               @default(false)
+  
+  // KEPT FOR BACKWARD COMPATIBILITY: Primary/default branch
+  branch_id             Int?
+  
+  // DEPRECATED (marked for removal in Phase 3)
+  accessible_branches   String?               @db.LongText
+  accessible_regions    String?               @db.LongText
+  permissions           String?               @db.LongText
+  
+  last_login            DateTime?
+  login_attempts        Int                   @default(0)
+  is_locked             Boolean               @default(false)
+  is_active             Boolean               @default(true)
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @updatedAt
+  must_change_password  Boolean               @default(false)
+  national_id           String?               @db.VarChar(30)
+  phone_number          String?               @db.VarChar(30)
+  date_of_birth         DateTime?             @db.Date
+  payment_method        String?               @db.VarChar(50)
+  payment_number        String?               @db.VarChar(100)
+  category              String?               @db.VarChar(120)
+  contract_type         String?               @db.VarChar(80)
+  education_level       String?               @db.VarChar(80)
+  contract_start        DateTime?             @db.Date
+  contract_end          DateTime?             @db.Date
+  account_status        user_account_status   @default(ACTIVE)
+
+  // Relations
+  companies           companies?              @relation(fields: [company_id], references: [company_id])
+  employees           employees?              @relation(fields: [employee_id], references: [employee_id])
+  branches            branches?               @relation(fields: [branch_id], references: [branch_id])
+  
+  // NEW: Many-to-many relationship with branches
+  assignedBranches    hr_user_branches[]
+}
+
+// ============ UPDATED: branches MODEL ============
+// Add this to the branches model:
+
+model branches {
+  // ... existing fields ...
+  
+  // NEW: Relation back to HR users (many-to-many)
+  assignedHRUsers     hr_user_branches[]
+  hr_users            hr_users[]            // Backward compat for branch_id FK
+}
