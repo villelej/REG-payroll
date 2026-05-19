@@ -1,0 +1,923 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model attendance {
+  attendance_id   Int       @id @default(autoincrement())
+  employee_id     Int
+  company_id      Int
+  attendance_date DateTime  @db.Date
+  status          String    @default("Present") @db.VarChar(20)
+  check_in_time   DateTime? @db.Time(0)
+  check_out_time  DateTime? @db.Time(0)
+  working_hours   Decimal?  @db.Decimal(5, 2)
+  overtime_hours  Decimal   @default(0.00) @db.Decimal(5, 2)
+  leave_type_id   Int?
+  remarks         String?   @db.VarChar(500)
+  is_approved     Boolean   @default(true)
+  approved_by     Int?
+  approved_at     DateTime?
+  created_at      DateTime  @default(now())
+
+  // Relations
+  employees employees @relation(fields: [employee_id], references: [employee_id])
+}
+
+model audit_log {
+  log_id      BigInt   @id @default(autoincrement())
+  company_id  Int
+  branch_id   Int?
+  user_id     Int?
+  user_type   String   @db.VarChar(20)
+  action      String   @db.VarChar(100)
+  entity_type String   @db.VarChar(50)
+  entity_id   Int?
+  old_values  String?  @db.LongText
+  new_values  String?  @db.LongText
+  ip_address  String?  @db.VarChar(45)
+  user_agent  String?  @db.Text
+  remarks     String?  @db.Text
+  created_at  DateTime @default(now())
+}
+
+model branches {
+  branch_id                   Int                    @id @default(autoincrement())
+  company_id                  Int
+  region_id                   Int?
+  zone_id                     Int?
+  branch_code                 String                 @unique @db.VarChar(30)
+  branch_name                 String                 @db.VarChar(200)
+  branch_type                 branches_branch_type   @default(BranchOffice)
+  address_line1               String                 @db.VarChar(255)
+  address_line2               String?                @db.VarChar(255)
+  city                        String                 @db.VarChar(100)
+  state                       String?                @db.VarChar(100)
+  pincode                     String?                @db.VarChar(10)
+  country                     String                 @default("Rwanda") @db.VarChar(100)
+  branch_email                String?                @db.VarChar(100)
+  branch_phone                String?                @db.VarChar(20)
+  branch_manager_id           Int?
+  bank_name                   String?                @db.VarChar(100)
+  bank_account_number         String?                @db.VarChar(50)
+  bank_ifsc_code              String?                @db.VarChar(20)
+  bank_account_holder         String?                @db.VarChar(200)
+  state_code                  String?                @db.VarChar(10)
+  professional_tax_applicable Boolean                @default(true)
+  pt_slab_type                branches_pt_slab_type  @default(Karnataka)
+  minimum_wage_applicable     Boolean                @default(false)
+  shop_establishment_number   String?                @db.VarChar(50)
+  payroll_cycle               branches_payroll_cycle @default(Monthly)
+  pay_day_of_month            Int                    @default(1)
+  is_active                   Boolean                @default(true)
+  cell                        String?                @db.VarChar(100)
+  createdAt                   DateTime               @default(now())
+  district                    String?                @db.VarChar(100)
+  province                    String?                @db.VarChar(100)
+  sector                      String?                @db.VarChar(100)
+  updatedAt                   DateTime               @default(now())
+  village                     String?                @db.VarChar(100)
+  status                      String                 @default("Approved") @db.VarChar(20)
+
+  // Relations
+  companies   companies     @relation(fields: [company_id], references: [company_id])
+  employees   employees[]
+  departments departments[]
+  payroll_batches payroll_batches[]
+  salary_grades salary_grades[]
+  hr_users      hr_users[]
+}
+
+model companies {
+  company_id          Int       @id @default(autoincrement())
+  company_name        String    @db.VarChar(200)
+  legal_name          String?   @db.VarChar(200)
+  company_code        String    @db.VarChar(50)
+  incorporation_date  DateTime?
+  address_line1       String    @db.VarChar(255)
+  address_line2       String?   @db.VarChar(255)
+  city                String    @db.VarChar(100)
+  state               String?   @db.VarChar(100)
+  pincode             String?   @db.VarChar(10)
+  country             String    @default("Rwanda") @db.VarChar(100)
+  company_email       String    @db.VarChar(100)
+  company_phone       String    @db.VarChar(20)
+  website             String?   @db.VarChar(200)
+  logo_url            String?   @db.VarChar(500)
+  is_active           Boolean   @default(true)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @default(now())
+  cell                String?   @db.VarChar(100)
+  district            String?   @db.VarChar(100)
+  paye_enabled        Boolean   @default(true)
+  province            String?   @db.VarChar(100)
+  registration_number String?   @db.VarChar(50)
+  rssb_enabled        Boolean   @default(true)
+  sector              String?   @db.VarChar(100)
+  tin_number          String?   @db.VarChar(20)
+  vat_number          String?   @db.VarChar(20)
+  village             String?   @db.VarChar(100)
+  bank_account_holder String?   @db.VarChar(200)
+  bank_account_number String?   @db.VarChar(50)
+  bank_name           String?   @db.VarChar(100)
+  bank_swift_code     String?   @db.VarChar(20)
+
+  // Relations
+  branches    branches[]
+  employees   employees[]
+  departments departments[]
+  hr_users    hr_users[]
+}
+
+model departments {
+  department_id    Int      @id @default(autoincrement())
+  company_id       Int
+  branch_id        Int?
+  department_code  String   @db.VarChar(20)
+  department_name  String   @db.VarChar(100)
+  description      String?  @db.Text
+  head_employee_id Int?
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @default(now())
+  status           String   @default("Approved") @db.VarChar(20)
+
+  // Relations
+  companies companies  @relation(fields: [company_id], references: [company_id])
+  branches  branches?  @relation(fields: [branch_id], references: [branch_id])
+  employees employees[]
+  posts     posts[]
+}
+
+model documents {
+  document_id   Int       @id @default(autoincrement())
+  company_id    Int
+  employee_id   Int?
+  document_type String    @db.VarChar(50)
+  document_name String    @db.VarChar(200)
+  document_url  String    @db.VarChar(500)
+  file_size     Int?
+  mime_type     String?   @db.VarChar(50)
+  uploaded_by   Int
+  uploaded_at   DateTime  @default(now())
+  expiry_date   DateTime? @db.Date
+  is_verified   Boolean   @default(false)
+  verified_by   Int?
+  verified_at   DateTime?
+
+  // Relations
+  employees employees? @relation(fields: [employee_id], references: [employee_id])
+}
+
+model employee_change_requests {
+  request_id     Int                                   @id @default(autoincrement())
+  employee_id    Int
+  company_id     Int
+  request_type   employee_change_requests_request_type
+  old_value      String?                               @db.Text
+  new_value      String                                @db.Text
+  reason         String?                               @db.Text
+  attachment_url String?                               @db.VarChar(500)
+  status         employee_change_requests_status       @default(Pending)
+  submitted_at   DateTime                              @default(now())
+  reviewed_by    Int?
+  reviewed_at    DateTime?
+  review_remarks String?                               @db.Text
+
+  // Relations
+  employees employees @relation(fields: [employee_id], references: [employee_id])
+}
+
+model employee_leaves {
+  leave_id         Int                    @id @default(autoincrement())
+  employee_id      Int
+  leave_type_id    Int
+  company_id       Int
+  start_date       DateTime               @db.Date
+  end_date         DateTime               @db.Date
+  total_days       Decimal                @db.Decimal(5, 2)
+  reason           String?                @db.Text
+  status           employee_leaves_status @default(Pending)
+  approved_by      Int?
+  approved_at      DateTime?
+  rejection_reason String?                @db.Text
+  created_at       DateTime               @default(now())
+
+  // Relations
+  employees   employees   @relation(fields: [employee_id], references: [employee_id])
+  leave_types leave_types @relation(fields: [leave_type_id], references: [leave_type_id])
+}
+
+model employee_salary_components {
+  id             Int       @id @default(autoincrement())
+  employee_id    Int
+  component_id   Int
+  custom_value   Decimal?  @db.Decimal(12, 2)
+  is_applicable  Boolean   @default(true)
+  effective_from DateTime  @db.Date
+  effective_to   DateTime? @db.Date
+  remarks        String?   @db.Text
+  created_at     DateTime  @default(now())
+  company_id     Int
+
+  // Relations
+  employees         employees         @relation(fields: [employee_id], references: [employee_id])
+  salary_components salary_components @relation(fields: [component_id], references: [component_id])
+}
+
+model employee_transfers {
+  transfer_id        Int                              @id @default(autoincrement())
+  employee_id        Int
+  company_id         Int
+  from_branch_id     Int
+  to_branch_id       Int
+  from_department_id Int?
+  to_department_id   Int?
+  from_post_id       Int?
+  to_post_id         Int?
+  from_base_salary   Decimal?                         @db.Decimal(12, 2)
+  to_base_salary     Decimal?                         @db.Decimal(12, 2)
+  transfer_date      DateTime                         @db.Date
+  effective_from     DateTime                         @db.Date
+  transfer_type      employee_transfers_transfer_type @default(Permanent)
+  transfer_reason    String?                          @db.Text
+  status             employee_transfers_status        @default(Initiated)
+  initiated_by       Int
+  approved_by        Int?
+  approved_at        DateTime?
+  remarks            String?                          @db.Text
+  created_at         DateTime                         @default(now())
+
+  // Relations
+  employees employees @relation(fields: [employee_id], references: [employee_id])
+}
+
+model employees {
+  employee_id               Int                         @id @default(autoincrement())
+  company_id                Int
+  branch_id                 Int
+  employee_code             String                      @db.VarChar(50)
+  first_name                String                      @db.VarChar(100)
+  middle_name               String?                     @db.VarChar(100)
+  last_name                 String                      @db.VarChar(100)
+  date_of_birth             DateTime                    @db.Date
+  gender                    employees_gender
+  blood_group               String?                     @db.VarChar(5)
+  marital_status            employees_marital_status?
+  personal_email            String                      @db.VarChar(100)
+  work_email                String?                     @db.VarChar(100)
+  phone_number              String                      @db.VarChar(15)
+  alternate_phone           String?                     @db.VarChar(15)
+  emergency_contact_name    String?                     @db.VarChar(200)
+  emergency_contact_phone   String?                     @db.VarChar(15)
+  current_address           String?                     @db.Text
+  permanent_address         String?                     @db.Text
+  city                      String?                     @db.VarChar(100)
+  state                     String?                     @db.VarChar(100)
+  pincode                   String?                     @db.VarChar(10)
+  department_id             Int
+  post_id                   Int
+  grade_id                  Int?
+  category_id               Int?
+  education_level           String?                     @db.VarChar(80)
+  experience_level          String?                     @db.VarChar(50)
+  skill_level               String?                     @db.VarChar(100)
+  date_of_joining           DateTime                    @db.Date
+  date_of_confirmation      DateTime?                   @db.Date
+  employment_type           employees_employment_type   @default(FullTime)
+  probation_months          Int                         @default(6)
+  reporting_manager_id      Int?
+  work_location             employees_work_location     @default(Office)
+  current_base_salary       Decimal                     @db.Decimal(12, 2)
+  current_hra_percentage    Decimal                     @default(40.00) @db.Decimal(5, 2)
+  current_special_allowance Decimal                     @default(0.00) @db.Decimal(10, 2)
+  bank_account_holder       String                      @db.VarChar(200)
+  bank_name                 String                      @db.VarChar(100)
+  bank_account_number       String                      @db.VarChar(50)
+  bank_ifsc_code            String                      @db.VarChar(20)
+  bank_branch               String?                     @db.VarChar(200)
+  password_hash             String?
+  profile_photo_url         String?                     @db.VarChar(500)
+  employment_status         employees_employment_status @default(Active)
+  resignation_date          DateTime?                   @db.Date
+  last_working_date         DateTime?                   @db.Date
+  exit_reason               String?                     @db.Text
+  is_active                 Boolean                     @default(true)
+  created_at                DateTime                    @default(now())
+  updated_at                DateTime                    @default(now())
+  created_by                Int?
+  full_name                 String?
+  must_change_password      Boolean                     @default(false)
+  national_id               String?                     @db.VarChar(20)
+  rssb_number               String?                     @db.VarChar(20)
+  tin_number                String?                     @db.VarChar(20)
+
+  // Relations
+  companies                  companies                    @relation(fields: [company_id], references: [company_id])
+  branches                   branches                     @relation(fields: [branch_id], references: [branch_id])
+  departments                departments                  @relation(fields: [department_id], references: [department_id])
+  posts                      posts                        @relation(fields: [post_id], references: [post_id])
+  attendance                 attendance[]
+  payslips                   payslips[]
+  documents                  documents[]
+  employee_leaves            employee_leaves[]
+  employee_salary_components employee_salary_components[]
+  employee_change_requests   employee_change_requests[]
+  employee_transfers         employee_transfers[]
+  hr_users                   hr_users[]
+  leave_balances             leave_balances[]              // ✅ ADD THIS
+  tax_deductions             tax_deductions[]
+  payment_profile            employee_payment_profiles?
+  payroll_record             payroll_records?
+  system_categories          system_categories?           @relation(fields: [category_id], references: [category_id])
+}
+
+model holidays {
+  holiday_id          Int      @id @default(autoincrement())
+  company_id          Int
+  holiday_name        String   @db.VarChar(200)
+  holiday_date        DateTime @db.Date
+  holiday_type        String   @default("National") @db.VarChar(20)
+  description         String?  @db.Text
+  is_recurring_yearly Boolean  @default(true)
+  applicable_for      String?
+  created_at          DateTime @default(now())
+}
+
+model hr_users {
+  user_id               Int                   @id @default(autoincrement())
+  company_id            Int?
+  employee_id           Int?
+  created_by            Int?                  // SuperAdmin who created this user (for audit trail)
+  username              String                @db.VarChar(50)
+  email                 String                @unique @db.VarChar(100)
+  refresh_token_hash    String?
+  activation_token      String?
+  activation_expires_at DateTime?
+  password_hash         String
+  full_name             String                @db.VarChar(200)
+  role                  hr_users_role
+  access_scope          hr_users_access_scope @default(BranchOnly)
+  accessible_branches   String?               @db.LongText
+  accessible_regions    String?               @db.LongText
+  permissions           String?               @db.LongText
+  last_login            DateTime?
+  login_attempts        Int                   @default(0)
+  is_locked             Boolean               @default(false)
+  is_active             Boolean               @default(true)
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @updatedAt
+  branch_id             Int?
+  must_change_password  Boolean               @default(false)
+  national_id           String?               @db.VarChar(30)
+  phone_number          String?               @db.VarChar(30)
+  date_of_birth         DateTime?             @db.Date
+  payment_method        String?               @db.VarChar(50)
+  payment_number        String?               @db.VarChar(100)
+  category              String?               @db.VarChar(120)
+  contract_type         String?               @db.VarChar(80)
+  education_level       String?               @db.VarChar(80)
+  contract_start        DateTime?             @db.Date
+  contract_end          DateTime?             @db.Date
+  account_status        user_account_status   @default(ACTIVE)
+
+  // Relations
+  companies companies?        @relation(fields: [company_id], references: [company_id])
+  employees employees?        @relation(fields: [employee_id], references: [employee_id])
+  branches  branches?         @relation(fields: [branch_id], references: [branch_id])
+  createdByUser hr_users?     @relation("CreatedBy", fields: [created_by], references: [user_id])
+  createdUsers hr_users[]     @relation("CreatedBy")
+}
+
+model leave_balances {
+  balance_id      Int      @id @default(autoincrement())
+  employee_id     Int
+  leave_type_id   Int
+  company_id      Int
+  financial_year  String   @db.VarChar(9)
+  opening_balance Decimal  @default(0.00) @db.Decimal(5, 2)
+  accrued_days    Decimal  @default(0.00) @db.Decimal(5, 2)
+  used_days       Decimal  @default(0.00) @db.Decimal(5, 2)
+  closing_balance Decimal  @default(0.00) @db.Decimal(5, 2)
+  updated_at      DateTime
+
+  // Relations
+  employees   employees   @relation(fields: [employee_id], references: [employee_id])
+  leave_types leave_types @relation(fields: [leave_type_id], references: [leave_type_id])
+}
+
+model leave_types {
+  leave_type_id         Int     @id @default(autoincrement())
+  company_id            Int
+  leave_code            String  @db.VarChar(20)
+  leave_name            String  @db.VarChar(100)
+  default_days_per_year Int     @default(0)
+  max_days_per_year     Int?
+  carry_forward_limit   Int     @default(0)
+  is_paid               Boolean @default(true)
+  requires_approval     Boolean @default(true)
+  is_active             Boolean @default(true)
+
+  // Relations
+  employee_leaves employee_leaves[]
+  leave_balances  leave_balances[]
+}
+
+model notifications {
+  notification_id     Int                             @id @default(autoincrement())
+  company_id          Int
+  branch_id           Int?
+  recipient_type      String                          @db.VarChar(20)
+  recipient_id        Int
+  notification_type   notifications_notification_type
+  title               String                          @db.VarChar(200)
+  message             String                          @db.Text
+  short_message       String?                         @db.VarChar(160)
+  delivery_methods    String                          @default("IN_APP")
+  email_sent          Boolean                         @default(false)
+  email_sent_at       DateTime?
+  sms_sent            Boolean                         @default(false)
+  sms_sent_at         DateTime?
+  is_read             Boolean                         @default(false)
+  read_at             DateTime?
+  is_archived         Boolean                         @default(false)
+  action_url          String?                         @db.VarChar(500)
+  related_entity_type String?                         @db.VarChar(50)
+  related_entity_id   Int?
+  created_at          DateTime                        @default(now())
+}
+
+model payroll_batches {
+  batch_id          Int                    @id @default(autoincrement())
+  company_id        Int
+  branch_id         Int
+  batch_code        String                 @db.VarChar(50)
+  pay_period_start  DateTime               @db.Date
+  pay_period_end    DateTime               @db.Date
+  pay_date          DateTime               @db.Date
+  total_employees   Int                    @default(0)
+  total_gross       Decimal                @default(0.00) @db.Decimal(14, 2)
+  total_deductions  Decimal                @default(0.00) @db.Decimal(14, 2)
+  total_net_payable Decimal                @default(0.00) @db.Decimal(14, 2)
+  total_bonus       Decimal                @default(0.00) @db.Decimal(14, 2)
+  status            payroll_batches_status @default(Draft)
+  calculated_at     DateTime?
+  calculated_by     Int?
+  approved_at       DateTime?
+  approved_by       Int?
+  paid_at           DateTime?
+  paid_by           Int?
+  remarks           String?                @db.Text
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+
+  // Relations
+  branches branches   @relation(fields: [branch_id], references: [branch_id])
+  payslips payslips[]
+}
+
+model payslips {
+  payslip_id            Int                     @id @default(autoincrement())
+  batch_id              Int
+  employee_id           Int
+  company_id            Int
+  payslip_number        String                  @db.VarChar(50)
+  days_present          Int                     @default(30)
+  days_absent           Int                     @default(0)
+  paid_leaves           Int                     @default(0)
+  unpaid_leaves         Int                     @default(0)
+  basic_salary          Decimal                 @default(0.00) @db.Decimal(12, 2)
+  hra                   Decimal                 @default(0.00) @db.Decimal(12, 2)
+  conveyance            Decimal                 @default(0.00) @db.Decimal(10, 2)
+  medical_allowance     Decimal                 @default(0.00) @db.Decimal(10, 2)
+  special_allowance     Decimal                 @default(0.00) @db.Decimal(10, 2)
+  bonus                 Decimal                 @default(0.00) @db.Decimal(10, 2)
+  other_earnings        Decimal                 @default(0.00) @db.Decimal(10, 2)
+  total_earnings        Decimal                 @default(0.00) @db.Decimal(12, 2)
+  pf_employee           Decimal                 @default(0.00) @db.Decimal(10, 2)
+  pf_employer           Decimal                 @default(0.00) @db.Decimal(10, 2)
+  esi_employee          Decimal                 @default(0.00) @db.Decimal(10, 2)
+  esi_employer          Decimal                 @default(0.00) @db.Decimal(10, 2)
+  professional_tax      Decimal                 @default(0.00) @db.Decimal(10, 2)
+  tds                   Decimal                 @default(0.00) @db.Decimal(10, 2)
+  advance_recovery      Decimal                 @default(0.00) @db.Decimal(10, 2)
+  other_deductions      Decimal                 @default(0.00) @db.Decimal(10, 2)
+  total_deductions      Decimal                 @default(0.00) @db.Decimal(12, 2)
+  net_payable           Decimal                 @default(0.00) @db.Decimal(12, 2)
+  net_pay_words         String?                 @db.VarChar(500)
+  payment_status        payslips_payment_status @default(Pending)
+  payment_date          DateTime?               @db.Date
+  payment_mode          payslips_payment_mode   @default(BankTransfer)
+  transaction_reference String?                 @db.VarChar(100)
+  calculation_data      String?                 @db.LongText
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
+
+  // Relations
+  employees       employees       @relation(fields: [employee_id], references: [employee_id])
+  payroll_batches payroll_batches @relation(fields: [batch_id], references: [batch_id])
+}
+
+model posts {
+  post_id              Int      @id @default(autoincrement())
+  company_id           Int
+  branch_id            Int?
+  department_id        Int
+  grade_id             Int?
+  post_code            String   @db.VarChar(20)
+  post_title           String   @db.VarChar(100)
+  post_description     String?  @db.Text
+  base_salary          Decimal  @db.Decimal(12, 2)
+  hra_percentage       Decimal  @default(40.00) @db.Decimal(5, 2)
+  da_percentage        Decimal  @default(0.00) @db.Decimal(5, 2)
+  conveyance_allowance Decimal  @default(0.00) @db.Decimal(10, 2)
+  medical_allowance    Decimal  @default(0.00) @db.Decimal(10, 2)
+  special_allowance    Decimal  @default(0.00) @db.Decimal(10, 2)
+  pf_applicable        Boolean  @default(true)
+  pf_percentage        Decimal  @default(12.00) @db.Decimal(5, 2)
+  esi_applicable       Boolean  @default(false)
+  is_active            Boolean  @default(true)
+  created_at           DateTime @default(now())
+  updatedAt            DateTime @default(now())
+
+  // Relations
+  departments departments @relation(fields: [department_id], references: [department_id])
+  employees   employees[]
+}
+
+model regions {
+  region_id        Int      @id @default(autoincrement())
+  company_id       Int
+  region_code      String   @db.VarChar(20)
+  region_name      String   @db.VarChar(100)
+  regional_head_id Int?
+  description      String?  @db.Text
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+
+  // Relations
+  zones zones[]
+}
+
+model salary_components {
+  component_id     Int                                @id @default(autoincrement())
+  company_id       Int
+  category_id      Int?
+  component_code   String                             @db.VarChar(20)
+  component_name   String                             @db.VarChar(100)
+  component_type   salary_components_component_type
+  calculation_type salary_components_calculation_type
+  default_value    Decimal?                           @db.Decimal(12, 2)
+  percentage_of    String?                            @db.VarChar(20)
+  formula          String?                            @db.Text
+  is_taxable       Boolean                            @default(true)
+  is_mandatory     Boolean                            @default(false)
+  display_order    Int                                @default(0)
+  is_active        Boolean                            @default(true)
+
+  // Relations
+  system_categories          system_categories?           @relation(fields: [category_id], references: [category_id])
+  employee_salary_components employee_salary_components[]
+}
+
+model salary_grades {
+  grade_id    Int      @id @default(autoincrement())
+  company_id  Int
+  branch_id   Int?
+  grade_code  String   @db.VarChar(10)
+  grade_name  String   @db.VarChar(50)
+  min_salary  Decimal? @db.Decimal(12, 2)
+  max_salary  Decimal? @db.Decimal(12, 2)
+  description String?  @db.Text
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+
+  // Relations
+  branches branches? @relation(fields: [branch_id], references: [branch_id])
+}
+
+model tax_deductions {
+  tax_id                  Int      @id @default(autoincrement())
+  employee_id             Int
+  company_id              Int
+  financial_year          String   @db.VarChar(9)
+  estimated_annual_income Decimal? @db.Decimal(14, 2)
+  total_exemptions        Decimal  @default(0.00) @db.Decimal(12, 2)
+  total_deductions_80c    Decimal  @default(0.00) @db.Decimal(12, 2)
+  total_deductions_80d    Decimal  @default(0.00) @db.Decimal(12, 2)
+  other_deductions        Decimal  @default(0.00) @db.Decimal(12, 2)
+  taxable_income          Decimal? @db.Decimal(14, 2)
+  tax_liability           Decimal? @db.Decimal(12, 2)
+  tds_deducted_so_far     Decimal  @default(0.00) @db.Decimal(12, 2)
+  tds_per_month           Decimal? @db.Decimal(10, 2)
+  created_at              DateTime @default(now())
+  updated_at              DateTime
+
+  // Relations
+  employees employees @relation(fields: [employee_id], references: [employee_id])
+}
+
+model zones {
+  zone_id      Int      @id @default(autoincrement())
+  company_id   Int
+  region_id    Int?
+  zone_code    String   @db.VarChar(20)
+  zone_name    String   @db.VarChar(100)
+  zone_head_id Int?
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+
+  // Relations
+  regions regions? @relation(fields: [region_id], references: [region_id])
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum employee_change_requests_request_type {
+  PhoneUpdate
+  EmailUpdate
+  AddressUpdate
+  BankAccountUpdate
+  NameCorrection
+  DocumentUpdate
+}
+
+enum salary_components_component_type {
+  Earning
+  Deduction
+}
+
+enum notifications_notification_type {
+  SalaryCredited
+  PayslipReady
+  LeaveApproved
+  LeaveRejected
+  ProfileUpdated
+  ChangeRequestApproved
+  ChangeRequestRejected
+  BirthdayReminder
+  DocumentExpiry
+  GeneralAnnouncement
+  TransferInitiated
+  TransferApproved
+  TransferCompleted
+}
+
+enum salary_components_calculation_type {
+  Fixed
+  Percentage
+  Formula
+}
+
+enum branches_branch_type {
+  HeadOffice
+  RegionalOffice
+  BranchOffice
+  Franchise
+  Warehouse
+  Store
+}
+
+enum employees_gender {
+  Male
+  Female
+  Other
+}
+
+enum employee_change_requests_status {
+  Pending
+  Approved
+  Rejected
+  Cancelled
+}
+
+enum employee_leaves_status {
+  Pending
+  Approved
+  Rejected
+  Cancelled
+}
+
+enum hr_users_access_scope {
+  AllBranches
+  RegionOnly
+  BranchOnly
+  Self
+}
+
+enum employees_marital_status {
+  Single
+  Married
+  Divorced
+  Widowed
+}
+
+enum payroll_batches_status {
+  Draft
+  Calculated
+  Approved
+  PaymentInitiated
+  Paid
+  Cancelled
+}
+
+enum employee_transfers_transfer_type {
+  Permanent
+  Temporary
+  Deputation
+}
+
+enum employee_transfers_status {
+  Initiated
+  Approved
+  Rejected
+  Completed
+}
+
+enum branches_pt_slab_type {
+  Karnataka
+  Maharashtra
+  Delhi
+  TamilNadu
+  WestBengal
+  Other
+}
+
+enum branches_payroll_cycle {
+  Monthly
+  BiWeekly
+  Weekly
+}
+
+enum employees_employment_type {
+  FullTime
+  PartTime
+  Contract
+  Intern
+}
+
+enum payslips_payment_status {
+  Pending
+  Processed
+  Paid
+  Failed
+}
+
+enum employees_work_location {
+  Office
+  Remote
+  Hybrid
+  Field
+}
+
+enum payslips_payment_mode {
+  BankTransfer
+  Cash
+  Cheque
+}
+
+enum employees_employment_status {
+  Active
+  Inactive
+  Resigned
+  Terminated
+  OnNotice
+  Transferred
+  Pending
+  Rejected
+}
+
+enum hr_users_role {
+  PlatformAdmin
+  SuperAdmin
+  CompanyAdmin @map("Admin")
+  BranchHR
+  Employee     @map("User")
+}
+
+enum user_account_status {
+  ACTIVE
+  BLOCKED
+  LOCKED
+  PENDING
+}
+
+model system_categories {
+  category_id   Int      @id @default(autoincrement())
+  category_name String   @db.VarChar(100)
+  category_code String   @unique @db.VarChar(50)
+  status        String   @default("ACTIVE") @db.VarChar(20)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+  employees     employees[]
+  salary_configurations salary_configurations?
+  salary_components salary_components[]
+  category_deductions category_deductions[]
+}
+
+model system_roles {
+  role_id   Int      @id @default(autoincrement())
+  role_name String   @unique @db.VarChar(100)
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model codeSequences {
+  sequence_id   Int      @id @default(autoincrement())
+  company_id    Int
+  entity_type   String   @db.VarChar(50)
+  next_sequence Int      @default(1)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now())
+
+  @@unique([company_id, entity_type])
+  @@index([company_id])
+  @@map("code_sequences")
+}
+
+model salary_configurations {
+  config_id           Int      @id @default(autoincrement())
+  company_id          Int
+  category_id         Int      @unique
+  basic_salary        Decimal  @db.Decimal(12, 2)
+  transport_allowance Decimal? @default(0.00) @db.Decimal(12, 2)
+  housing_allowance   Decimal? @default(0.00) @db.Decimal(12, 2)
+  meal_allowance      Decimal? @default(0.00) @db.Decimal(12, 2)
+  performance_bonus   Decimal? @default(0.00) @db.Decimal(12, 2)
+  project_bonus       Decimal? @default(0.00) @db.Decimal(12, 2)
+  gross_salary        Decimal? @default(0.00) @db.Decimal(12, 2)
+  net_salary          Decimal? @default(0.00) @db.Decimal(12, 2)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  // Relations
+  categories          system_categories @relation(fields: [category_id], references: [category_id])
+}
+
+model category_deductions {
+  id               Int      @id @default(autoincrement())
+  category_id      Int
+  deduction_name   String   @db.VarChar(100)
+  percentage       Decimal  @db.Decimal(5, 2)
+  is_enabled       Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@unique([category_id, deduction_name])
+
+  // Relations
+  categories system_categories @relation(fields: [category_id], references: [category_id])
+}
+
+model employee_payment_profiles {
+  id              Int      @id @default(autoincrement())
+  employee_id     Int      @unique
+  payment_method  String   @db.VarChar(50)
+  account_number  String?  @db.VarChar(50)
+  phone_number    String?  @db.VarChar(20)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  employees employees @relation(fields: [employee_id], references: [employee_id])
+}
+
+model payroll_records {
+  id               Int      @id @default(autoincrement())
+  employee_id      Int      @unique
+  category_id      Int
+  gross_salary     Decimal  @db.Decimal(12, 2)
+  total_deductions Decimal  @db.Decimal(12, 2)
+  net_salary       Decimal  @db.Decimal(12, 2)
+  payment_status   String   @default("Pending") @db.VarChar(20)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  employees employees @relation(fields: [employee_id], references: [employee_id])
+}
+
+model deduction_settings {
+  deduction_id              Int      @id @default(autoincrement())
+  company_id                Int      @unique
+  tax_percentage            Decimal  @default(0.00) @db.Decimal(5, 2)
+  insurance_percentage      Decimal  @default(0.00) @db.Decimal(5, 2)
+  social_security_percentage Decimal  @default(0.00) @db.Decimal(5, 2)
+  other_deductions          Decimal  @default(0.00) @db.Decimal(5, 2)
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+}
+
+model branch_deductions {
+  id              Int      @id @default(autoincrement())
+  company_id      Int
+  deduction_name  String   @db.VarChar(100)
+  amount          Decimal  @db.Decimal(12, 2)
+  is_active       Boolean  @default(true)
+  branch_ids      String   @db.Text
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+}
+

@@ -1,0 +1,58 @@
+import { Injectable } from '@nestjs/common';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PassportStrategy } from '@nestjs/passport';
+import { PrismaService } from '../prisma.service';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(private prisma: PrismaService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: process.env.JWT_SECRET || 'your-super-secret-key',
+    });
+  }
+
+  async validate(payload: any) {
+    const user = await this.prisma.hr_users.findUnique({
+      where: { user_id: payload.sub },
+      include: {
+        assignedBranches: {
+          select: { branch_id: true }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Determine accessible branches
+    let branches: number[] = [];
+    
+    if (user.canViewAllBranches) {
+      // If user has "view all" permission, get all company branches
+      const allBranches = await this.prisma.branches.findMany({
+        where: { company_id: user.company_id || undefined },
+        select: { branch_id: true }
+      });
+      branches = allBranches.map(b => b.branch_id);
+    } else if (user.assignedBranches && user.assignedBranches.length > 0) {
+      // Get assigned branches from junction table
+      branches = user.assignedBranches.map(ab => ab.branch_id);
+    }
+
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      role: payload.role,
+      companyId: payload.companyId,
+      employeeId: payload.employeeId,
+      // BACKWARD COMPATIBILITY: Keep primary branchId
+      branchId: user.branch_id,
+      // NEW: Multiple branches support
+      branches: branches,
+      canViewAllBranches: user.canViewAllBranches,
+    };
+  }
+}

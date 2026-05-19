@@ -1,0 +1,166 @@
+/**
+ * Data Migration Script: Single Branch → Multi-Branch
+ * 
+ * This script safely migrates existing HR/Admin users from single-branch
+ * assignments to the new multi-branch junction table model.
+ * 
+ * Run AFTER Prisma migration:
+ * npx ts-node backend/scripts/migrate-multi-branch.ts
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+interface MigrationResult {
+  totalUsers: number;
+  successCount: number;
+  skipCount: number;
+  errorCount: number;
+  errors: Array<{ userId: number; error: string }>;
+}
+
+async function migrateExistingBranches(): Promise<MigrationResult> {
+  const result: MigrationResult = {
+    totalUsers: 0,
+    successCount: 0,
+    skipCount: 0,
+    errorCount: 0,
+    errors: [],
+  };
+
+  try {
+    console.log('🔍 Starting multi-branch migration...\n');
+
+    // Step 1: Get all HR/Admin users with single branch assignment
+    const hrUsersWithBranch = await prisma.hr_users.findMany({
+      where: {
+        branch_id: { not: null },
+        role: { in: ['BranchHR', 'CompanyAdmin'] },
+      },
+      select: {
+        user_id: true,
+        username: true,
+        branch_id: true,
+        role: true,
+      },
+    });
+
+    result.totalUsers = hrUsersWithBranch.length;
+    console.log(`📊 Found ${result.totalUsers} HR/Admin users with branch assignments\n`);
+
+    // Step 2: Migrate each user
+    for (const user of hrUsersWithBranch) {
+      try {
+        // Check if assignment already exists (idempotent)
+        const existingAssignment = await prisma.hr_user_branches.findUnique({
+          where: {
+            user_id_branch_id: {
+              user_id: user.user_id,
+              branch_id: user.branch_id!,
+            },
+          },
+        });
+
+        if (existingAssignment) {
+          console.log(`⏭️  Skipped: User ${user.username} (ID: ${user.user_id}) already migrated`);
+          result.skipCount++;
+          continue;
+        }
+
+        // Create new junction record
+        await prisma.hr_user_branches.create({
+          data: {
+            user_id: user.user_id,
+            branch_id: user.branch_id!,
+          },
+        });
+
+        console.log(
+          `✅ Migrated: User ${user.username} (ID: ${user.user_id}) → Branch ${user.branch_id} (${user.role})`
+        );
+        result.successCount++;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(
+          `❌ Failed: User ${user.username} (ID: ${user.user_id}): ${errorMsg}`
+        );
+        result.errorCount++;
+        result.errors.push({
+          userId: user.user_id,
+          error: errorMsg,
+        });
+      }
+    }
+
+    console.log('\n' + '='.repeat(60));
+    console.log('📈 MIGRATION SUMMARY');
+    console.log('='.repeat(60));
+    console.log(`Total Users Processed:  ${result.totalUsers}`);
+    console.log(`✅ Successfully Migrated: ${result.successCount}`);
+    console.log(`⏭️  Already Migrated:     ${result.skipCount}`);
+    console.log(`❌ Errors:               ${result.errorCount}`);
+
+    if (result.errors.length > 0) {
+      console.log('\n⚠️  ERRORS ENCOUNTERED:');
+      result.errors.forEach((err) => {
+        console.log(`   - User ID ${err.userId}: ${err.error}`);
+      });
+    }
+
+    // Step 3: Verify migration
+    const junctionTableCount = await prisma.hr_user_branches.count();
+    console.log(`\n✓ Junction table now contains: ${junctionTableCount} assignments`);
+
+    if (result.errorCount === 0) {
+      console.log('\n✅ Migration completed successfully!\n');
+    } else {
+      console.log('\n⚠️  Migration completed with errors. Please review and retry failed records.\n');
+    }
+
+    return result;
+  } catch (error) {
+    console.error('\n❌ CRITICAL ERROR:', error);
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+// Rollback function for safety
+async function rollbackMigration(): Promise<void> {
+  try {
+    console.log('🔄 Rolling back migration...');
+    const deleted = await prisma.hr_user_branches.deleteMany({
+      where: {
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+        },
+      },
+    });
+    console.log(`✓ Deleted ${deleted.count} records from last 24 hours`);
+  } catch (error) {
+    console.error('Error during rollback:', error);
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+// Main execution
+async function main() {
+  const args = process.argv.slice(2);
+
+  if (args.includes('--rollback')) {
+    console.log('⚠️  ROLLBACK MODE\n');
+    await rollbackMigration();
+  } else {
+    const result = await migrateExistingBranches();
+    process.exit(result.errorCount > 0 ? 1 : 0);
+  }
+}
+
+main().catch((error) => {
+  console.error('Unhandled error:', error);
+  process.exit(1);
+});

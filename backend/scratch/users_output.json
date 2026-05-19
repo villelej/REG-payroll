@@ -1,0 +1,22 @@
+[
+  {
+    "user_id": 2,
+    "username": "superadmin",
+    "role": ""
+  },
+  {
+    "user_id": 3,
+    "username": "hr_manager",
+    "role": "Admin"
+  },
+  {
+    "user_id": 4,
+    "username": "EMP001",
+    "role": "User"
+  },
+  {
+    "user_id": 7,
+    "username": "olivier",
+    "role": "SuperAdmin"
+  }
+]
